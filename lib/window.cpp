@@ -14,6 +14,7 @@
 #include <SDL3/SDL_properties.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_surface.h>
+#include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_video.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_hints.h>
@@ -52,6 +53,8 @@ std::atomic_bool g_surfaceReady = true;
 #endif
 bool g_lastPaused = false;
 bool g_gotFocus = false;
+std::atomic_bool g_controllerReconcileRequested = false;
+Uint64 g_lastControllerReconcile = 0;
 
 bool operator==(const AuroraWindowSize& lhs, const AuroraWindowSize& rhs) {
   return lhs.width == rhs.width && lhs.height == rhs.height && lhs.fb_width == rhs.fb_width &&
@@ -131,6 +134,9 @@ bool SDLCALL lifecycle_event_watch(void*, SDL_Event* event) {
       g_backgrounded.store(false, std::memory_order_relaxed);
       break;
 #endif
+    case SDL_EVENT_DID_ENTER_FOREGROUND:
+      g_controllerReconcileRequested.store(true, std::memory_order_release);
+      break;
     default:
       break;
     }
@@ -194,6 +200,7 @@ void process_event(SDL_Event& event) {
     break;
   }
   case SDL_EVENT_GAMEPAD_ADDED: {
+    input::reconcile_controllers("gamepad added event");
     auto instance = input::add_controller(event.gdevice.which);
     g_events.push_back(AuroraEvent{
         .type = AURORA_CONTROLLER_ADDED,
@@ -202,13 +209,16 @@ void process_event(SDL_Event& event) {
     break;
   }
   case SDL_EVENT_GAMEPAD_REMOVED: {
-    input::remove_controller(event.gdevice.which);
+    input::reconcile_controllers("gamepad removed event");
     g_events.push_back(AuroraEvent{
         .type = AURORA_CONTROLLER_REMOVED,
         .controller = event.gdevice.which,
     });
     break;
   }
+  case SDL_EVENT_GAMEPAD_REMAPPED:
+    input::reconcile_controllers("gamepad remapped event");
+    break;
   case SDL_EVENT_MOUSE_WHEEL:
     if (primaryWindow) {
       input::set_mouse_scroll(event.wheel.x, event.wheel.y);
@@ -260,6 +270,14 @@ const AuroraEvent* poll_events() {
   SDL_Event event;
   // Clear out the previous scroll values to prevent ghost input
   input::set_mouse_scroll(0, 0);
+  const Uint64 now = SDL_GetTicks();
+  if (g_controllerReconcileRequested.exchange(false, std::memory_order_acq_rel)) {
+    input::reconcile_controllers("foreground resume");
+    g_lastControllerReconcile = now;
+  } else if (now - g_lastControllerReconcile >= 1000) {
+    input::reconcile_controllers("active poll");
+    g_lastControllerReconcile = now;
+  }
   if (is_paused()) {
     ZoneScopedN("SDL_WaitEvent (paused)");
     if (SDL_WaitEvent(&event)) {

@@ -48,6 +48,7 @@ GameController* get_controller_for_player(uint32_t player) noexcept;
 Sint32 get_instance_for_player(uint32_t player) noexcept;
 SDL_JoystickID add_controller(SDL_JoystickID which) noexcept;
 void remove_controller(Uint32 instance) noexcept;
+void reconcile_controllers(const char* reason) noexcept;
 Sint32 player_index(Uint32 instance) noexcept;
 void set_player_index(Uint32 instance, Sint32 index) noexcept;
 std::string controller_name(Uint32 instance) noexcept;

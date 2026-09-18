@@ -1,4 +1,5 @@
 #include "input.hpp"
+#include "controller_reconcile.hpp"
 #include "device.hpp"
 #include "internal.hpp"
 
@@ -14,6 +15,7 @@
 #include <array>
 #include <string>
 #include <utility>
+#include <vector>
 
 using namespace std::string_view_literals;
 
@@ -334,7 +336,8 @@ void apply_port_preferences() noexcept {
 
 GameController* get_controller_for_player(uint32_t player) noexcept {
   for (auto& [which, controller] : g_GameControllers) {
-    if (player_index(which) == player) {
+    if (SDL_GamepadConnected(controller.m_controller) && SDL_GetGamepadID(controller.m_controller) == which &&
+        player_index(which) == player) {
       return &controller;
     }
   }
@@ -362,7 +365,8 @@ GameController* get_controller_for_player(uint32_t player) noexcept {
 
 Sint32 get_instance_for_player(uint32_t player) noexcept {
   for (const auto& [which, controller] : g_GameControllers) {
-    if (player_index(which) == player) {
+    if (SDL_GamepadConnected(controller.m_controller) && SDL_GetGamepadID(controller.m_controller) == which &&
+        player_index(which) == player) {
       return which;
     }
   }
@@ -371,6 +375,9 @@ Sint32 get_instance_for_player(uint32_t player) noexcept {
 }
 
 SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
+  if (g_GameControllers.contains(which)) {
+    return which;
+  }
   auto* ctrl = SDL_OpenGamepad(which);
   if (ctrl != nullptr) {
     GameController controller;
@@ -400,10 +407,11 @@ SDL_JoystickID add_controller(SDL_JoystickID which) noexcept {
     return instance;
   }
 
+  Log.error("Failed to open controller instance {}: {}", which, SDL_GetError());
   return -1;
 }
 
-void remove_controller(Uint32 instance) noexcept {
+static bool close_controller(Uint32 instance) noexcept {
   if (auto it = g_GameControllers.find(instance); it != g_GameControllers.end()) {
     Log.info("Removed controller '{}' (instance {})",
              SDL_GetGamepadName(it->second.m_controller) != nullptr ? SDL_GetGamepadName(it->second.m_controller)
@@ -411,8 +419,71 @@ void remove_controller(Uint32 instance) noexcept {
              instance);
     SDL_CloseGamepad(it->second.m_controller);
     g_GameControllers.erase(it);
+    return true;
+  }
+  return false;
+}
+
+void remove_controller(Uint32 instance) noexcept {
+  if (close_controller(instance)) {
     apply_port_preferences();
   }
+}
+
+void reconcile_controllers(const char* reason) noexcept {
+  int count = 0;
+  SDL_ClearError();
+  SDL_JoystickID* listed = SDL_GetGamepads(&count);
+  if (listed == nullptr) {
+    Log.warn("Controller reconciliation '{}' could not enumerate current gamepads: {}", reason, SDL_GetError());
+    return;
+  }
+
+  std::vector<uint32_t> current(listed, listed + count);
+  SDL_free(listed);
+  std::vector<detail::ControllerSnapshot> stored;
+  stored.reserve(g_GameControllers.size());
+  for (const auto& [instance, controller] : g_GameControllers) {
+    const bool connected = SDL_GamepadConnected(controller.m_controller) &&
+                           SDL_GetGamepadID(controller.m_controller) == instance;
+    stored.push_back({instance, SDL_GetGamepadPlayerIndex(controller.m_controller), connected});
+  }
+
+  const auto plan = detail::plan_controller_reconciliation(stored, current, PAD_MAX_CONTROLLERS);
+  if (!plan.close.empty() || !plan.open.empty() || reason != "active poll"sv) {
+    Log.info("Controller reconciliation '{}' found {} stored and {} current gamepad(s)", reason, stored.size(),
+             current.size());
+  }
+
+  for (uint32_t instance : plan.close) {
+    const auto it = g_GameControllers.find(instance);
+    if (it == g_GameControllers.end()) {
+      continue;
+    }
+    const int32_t player = SDL_GetGamepadPlayerIndex(it->second.m_controller);
+    Log.info("Releasing stale controller '{}' (instance {}, player {}) during '{}'",
+             SDL_GetGamepadName(it->second.m_controller) != nullptr ? SDL_GetGamepadName(it->second.m_controller)
+                                                                    : "unknown",
+             instance, player, reason);
+    close_controller(instance);
+  }
+
+  for (const auto& assignment : plan.assign) {
+    const SDL_JoystickID instance = add_controller(assignment.instance);
+    if (instance < 0) {
+      continue;
+    }
+    auto it = g_GameControllers.find(instance);
+    if (it == g_GameControllers.end()) {
+      continue;
+    }
+    SDL_SetGamepadPlayerIndex(it->second.m_controller, assignment.player);
+    Log.info("Assigned controller '{}' (instance {}) to player {} during '{}'",
+             SDL_GetGamepadName(it->second.m_controller) != nullptr ? SDL_GetGamepadName(it->second.m_controller)
+                                                                    : "unknown",
+             instance, assignment.player, reason);
+  }
+  apply_port_preferences();
 }
 
 bool is_gamecube(Uint32 instance) noexcept {
@@ -495,6 +566,7 @@ void initialize() noexcept {
    * as expected */
   AURORA_ASSERT(SDL_Init(SDL_INIT_HAPTIC | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_SENSOR),
          "Failed to initialize SDL subsystems: {}", SDL_GetError());
+  reconcile_controllers("startup");
 }
 
 struct MouseScrollStatus {
