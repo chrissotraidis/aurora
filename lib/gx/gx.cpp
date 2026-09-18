@@ -644,7 +644,7 @@ static inline wgpu::PrimitiveState to_primitive_state(GXCullMode gx_cullMode) {
   return {
       .topology = wgpu::PrimitiveTopology::TriangleList,
       .stripIndexFormat = wgpu::IndexFormat::Undefined,
-      .frontFace = wgpu::FrontFace::CW,
+      .frontFace = wgpu::FrontFace::CCW,
       .cullMode = cullMode,
   };
 }
