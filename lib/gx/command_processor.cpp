@@ -1809,7 +1809,7 @@ void handle_aurora(const u8* data, u32& pos, u32 size, bool bigEndian) {
     slot.set_no_cache(false); // Reset no-cache flag
     g_gxState.stateDirty = true;
   } else if (subCmd == GX_AURORA_LOAD_TLUT) {
-    CHECK(pos + 23 <= size, "GX_AURORA_LOAD_TLUT read overrun");
+    CHECK(pos + 24 <= size, "GX_AURORA_LOAD_TLUT read overrun");
     const auto idx = data[pos];
     pos += 1;
     CHECK(idx < MaxTluts, "invalid tlut slot {}", idx);
@@ -1824,6 +1824,8 @@ void handle_aurora(const u8* data, u32& pos, u32 size, bool bigEndian) {
     pos += 4;
     slot.tlutDataVersion = read_u32(data + pos, bigEndian);
     pos += 4;
+    slot.set_host_endian(data[pos] != 0);
+    pos += 1;
     slot.set_no_cache(false); // Reset no-cache flag
     g_gxState.stateDirty = true;
   } else if (subCmd == GX2_SET_POLYGON_OFFSET) {

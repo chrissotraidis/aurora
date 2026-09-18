@@ -22,6 +22,7 @@
 #include <mutex>
 #include <optional>
 #include <utility>
+#include <vector>
 
 static aurora::Module Log("aurora::gx");
 
@@ -146,9 +147,20 @@ gfx::TextureHandle get_tlut_texture(const GXTlutObj_& tlut) {
     cache.staticTextureUsers.clear();
   }
 
+  std::vector<u16> bigEndianData;
+  const u8* paletteData = static_cast<const u8*>(tlut.data);
+  if (tlut.host_endian()) {
+    const auto* nativeData = static_cast<const u16*>(tlut.data);
+    bigEndianData.reserve(tlut.numEntries);
+    for (u16 i = 0; i < tlut.numEntries; ++i) {
+      bigEndianData.push_back(bswap(nativeData[i]));
+    }
+    paletteData = reinterpret_cast<const u8*>(bigEndianData.data());
+  }
+
   const auto handle = gfx::new_static_texture_2d(
       tlut.numEntries, 1, 1, gfx::tlut_texture_format(tlut.format),
-      {static_cast<const u8*>(tlut.data), static_cast<size_t>(tlut.numEntries) * sizeof(u16)}, true, "Loaded TLUT");
+      {paletteData, static_cast<size_t>(tlut.numEntries) * sizeof(u16)}, true, "Loaded TLUT");
   if (tlut.tlutObjId != 0) {
     auto& cache = s_tlutObjectCaches[tlut.tlutObjId];
     cache.tlutTexture.handle = handle;

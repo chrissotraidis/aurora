@@ -98,6 +98,7 @@ void emit_loaded_tlut_metadata(const GXTlutObj_& obj, u32 idx) {
   GX_WRITE_U16(obj.numEntries);
   GX_WRITE_U32(obj.tlutObjId);
   GX_WRITE_U32(obj.tlutDataVersion);
+  GX_WRITE_U8(static_cast<u8>(obj.host_endian()));
 }
 } // namespace
 
@@ -316,6 +317,11 @@ void GXInitTlutObj(GXTlutObj* obj_, const void* data, GXTlutFmt format, u16 entr
 
   SET_REG_FIELD(0, obj->tlut, 2, 10, format);
   SET_REG_FIELD(0, obj->loadTlut0, 8, 24, 0x64);
+}
+
+void AuroraInitTlutObjHost(GXTlutObj* obj_, const void* data, GXTlutFmt format, u16 entries) {
+  GXInitTlutObj(obj_, data, format, entries);
+  reinterpret_cast<GXTlutObj_*>(obj_)->set_host_endian(true);
 }
 
 void GXInitTlutObjData(GXTlutObj* obj_, const void* data) {

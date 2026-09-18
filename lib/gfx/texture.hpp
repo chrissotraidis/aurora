@@ -125,6 +125,8 @@ struct GXTlutObj_ {
   // Custom flag for texture caching
   bool no_cache() const noexcept { return (flags & 0x80) != 0; }
   void set_no_cache(bool value) noexcept { flags = value ? flags | 0x80 : flags & ~0x80; }
+  bool host_endian() const noexcept { return (flags & 0x40) != 0; }
+  void set_host_endian(bool value) noexcept { flags = value ? flags | 0x40 : flags & ~0x40; }
 };
 static_assert(sizeof(GXTlutObj_) <= sizeof(GXTlutObj), "GXTlutObj too small!");
 

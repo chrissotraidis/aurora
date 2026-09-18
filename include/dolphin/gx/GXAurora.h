@@ -2,6 +2,8 @@
 #define DOLPHIN_GXAURORA_H
 
 #include <dolphin/types.h>
+#include <dolphin/gx/GXEnum.h>
+#include <dolphin/gx/GXStruct.h>
 
 #if __cplusplus
 extern "C" {
@@ -135,6 +137,13 @@ void AuroraSetViewportPolicy(AuroraViewportPolicy policy);
  * Retrieves the current content framebuffer size.
  */
 void AuroraGetRenderSize(u32* width, u32* height);
+
+/**
+ * Initializes a TLUT whose 16-bit entries are in native host byte order.
+ * Source ports may use this for palettes generated in host memory; retail
+ * GameCube TLUT data should continue to use GXInitTlutObj.
+ */
+void AuroraInitTlutObjHost(GXTlutObj* obj, const void* data, GXTlutFmt format, u16 entries);
 
 /**
  * Sets the actual render viewport in native framebuffer coordinates.
