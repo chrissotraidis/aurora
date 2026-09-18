@@ -8,3 +8,6 @@ build/
 cmake-build-*/
 CMakeUserPresets.json
 out/
+
+# Bellpad local build outputs
+build-*/
