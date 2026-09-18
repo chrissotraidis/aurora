@@ -43,7 +43,12 @@ void GXSaveCPUFifo(GXFifoObj* fifo) {}
 // TODO GXSaveGPFifo
 // TODO GXRedirectWriteGatherPipe
 // TODO GXRestoreWriteGatherPipe
-// TODO GXSetCurrentGXThread
+OSThread* GXSetCurrentGXThread() {
+  // Aurora records GX commands into its own software FIFO. There is no
+  // hardware FIFO overflow thread to transfer, and clients serialize command
+  // generation through the platform render thread.
+  return nullptr;
+}
 // TODO GXGetCurrentGXThread
 // TODO GXGetOverflowCount
 // TODO GXResetOverflowCount

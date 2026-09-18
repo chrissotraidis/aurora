@@ -176,7 +176,16 @@ void GXSetTexCopyDst(u16 wd, u16 ht, GXTexFmt fmt, GXBool mipmap) {
 }
 
 // TODO GXSetDispCopyFrame2Field
-// TODO GXSetCopyClamp
+void GXSetCopyClamp(GXFBClamp clamp) {
+  const bool clampTop = (clamp & GX_CLAMP_TOP) != 0;
+  const bool clampBottom = (clamp & GX_CLAMP_BOTTOM) != 0;
+
+  // Aurora presents the render target directly and therefore has no XFB
+  // display-copy register. Preserve the clamp state for EFB-to-texture copies,
+  // which are the copy operations Aurora executes.
+  SET_REG_FIELD(0, __gx->cpTex, 1, 0, clampTop);
+  SET_REG_FIELD(0, __gx->cpTex, 1, 1, clampBottom);
+}
 
 u32 GXSetDispCopyYScale(f32 vscale) { return 0; }
 

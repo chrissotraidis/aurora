@@ -19,7 +19,16 @@ void GXSetScissor(u32 left, u32 top, u32 width, u32 height) {
   __gx->bpSent = 1;
 }
 
-// TODO GXSetScissorBoxOffset
+void GXSetScissorBoxOffset(s32 x_off, s32 y_off) {
+  const u32 halfX = static_cast<u32>(x_off + 342) >> 1;
+  const u32 halfY = static_cast<u32>(y_off + 342) >> 1;
+  u32 reg = 0;
+  SET_REG_FIELD(0, reg, 10, 0, halfX);
+  SET_REG_FIELD(0, reg, 10, 10, halfY);
+  SET_REG_FIELD(0, reg, 8, 24, 0x59);
+  GX_WRITE_RAS_REG(reg);
+  __gx->bpSent = 1;
+}
 
 void GXSetCullMode(GXCullMode mode) {
   // Swap front/back to match hardware convention

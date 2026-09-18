@@ -284,6 +284,13 @@ void GXFlush() {
   }
 }
 
+void GXAbortFrame() {
+  // Discard commands that have not yet reached Aurora's command processor.
+  // This is the software-FIFO equivalent of aborting and cleaning the
+  // GameCube GP FIFO after the watchdog detects a stalled frame.
+  aurora::gx::fifo::clear_buffer();
+}
+
 void GXPixModeSync() {
   GX_WRITE_RAS_REG(__gx->peCtrl);
   __gx->bpSent = 1;
