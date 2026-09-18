@@ -135,6 +135,7 @@ if (_aurora_dawn_provider STREQUAL "vendor")
     include(FetchContent)
     FetchContent_Declare(dawn
       URL "https://github.com/encounter/dawn/archive/${AURORA_DAWN_REF}.tar.gz"
+      URL_HASH SHA256=03ca9de39e1b534c9a443ede66ce8fcf61521edfa7d526f9356972241cbd957d
       DOWNLOAD_EXTRACT_TIMESTAMP FALSE
       EXCLUDE_FROM_ALL
     )
@@ -175,6 +176,9 @@ elseif (_aurora_dawn_provider STREQUAL "system")
 
 elseif (_aurora_dawn_provider STREQUAL "package")
   # ── Package: download prebuilt Dawn install tree ──
+  set(AURORA_DAWN_PACKAGE_URL_HASH "" CACHE STRING
+    "SHA-256 hash for a custom prebuilt Dawn package URL")
+  set(_dawn_package_url_hash "${AURORA_DAWN_PACKAGE_URL_HASH}")
   if (NOT AURORA_DAWN_PACKAGE_URL)
     if (NOT _has_dawn_package)
       message(FATAL_ERROR
@@ -184,12 +188,24 @@ elseif (_aurora_dawn_provider STREQUAL "package")
     endif ()
     set(AURORA_DAWN_PACKAGE_URL
       "https://github.com/encounter/dawn/releases/download/${AURORA_DAWN_VERSION}/dawn-${_dawn_system}-${_dawn_arch}.tar.gz")
+    if ("${_dawn_system}-${_dawn_arch}" STREQUAL "ios-arm64")
+      set(_dawn_package_url_hash
+        "SHA256=ada0bafc173152d80eba7c3b2f9609a71185d5809cbd5dd3251b91a0803a7ae2")
+    elseif ("${_dawn_system}-${_dawn_arch}" STREQUAL "darwin-arm64")
+      set(_dawn_package_url_hash
+        "SHA256=a9cc9903761e60cf70d7d771bd0c482be1943e273717782d71c33313afeb6080")
+    endif ()
+  endif ()
+  if (NOT _dawn_package_url_hash)
+    message(FATAL_ERROR
+      "AURORA_DAWN_PROVIDER=package requires AURORA_DAWN_PACKAGE_URL_HASH for this package")
   endif ()
   message(STATUS "aurora: Fetching prebuilt Dawn package from ${AURORA_DAWN_PACKAGE_URL}")
 
   include(FetchContent)
   FetchContent_Declare(dawn_prebuilt
     URL "${AURORA_DAWN_PACKAGE_URL}"
+    URL_HASH "${_dawn_package_url_hash}"
     DOWNLOAD_EXTRACT_TIMESTAMP FALSE
   )
   FetchContent_MakeAvailable(dawn_prebuilt)

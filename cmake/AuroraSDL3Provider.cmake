@@ -141,6 +141,7 @@ elseif (_aurora_sdl3_provider STREQUAL "vendor")
     include(FetchContent)
     FetchContent_Declare(SDL
       URL "https://github.com/libsdl-org/SDL/archive/${AURORA_SDL3_REF}.tar.gz"
+      URL_HASH SHA256=0dc11d980ba17250200718fa4e28011da293f27ed92f92203afffe396811f307
       DOWNLOAD_EXTRACT_TIMESTAMP FALSE
       PATCH_COMMAND ${CMAKE_COMMAND}
         -DSDL_SOURCE_DIR=<SOURCE_DIR>
