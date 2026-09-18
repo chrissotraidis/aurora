@@ -1578,8 +1578,10 @@ static void draw_prim(GXPrimitive prim, GXVtxFmt fmt, u16 vtxCount, const u8* da
     UNLIKELY { handle_draw_overrun(totalVtxBytes, data, pos, size); }
 
   auto* lastDraw = !g_gxState.stateDirty ? gfx::get_last_draw_command<DrawData>() : nullptr;
-  const bool canMerge = lastDraw != nullptr && prim != GX_LINES && prim != GX_LINESTRIP && prim != GX_POINTS &&
-                        lastDraw->instanceCount == 1;
+  // Draw state equality is insufficient for emu64 display lists: state can be
+  // rewritten through reused objects and matrices between draws. Keep draws
+  // isolated until the merge key represents those dependencies explicitly.
+  const bool canMerge = false;
 
   // Push raw vertex data to buffer. Merged draws must remain byte-contiguous with the previous range.
   gfx::Range vertRange = gfx::push_verts(data + pos, totalVtxBytes, canMerge ? 0 : 4);
